@@ -1,0 +1,10 @@
+{
+  "name": "Remix Remix Remix Dharshu",
+  "description": "Friendly, warm, caring, and natural AI companion supporting Tanglish, Tamil, and English.",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

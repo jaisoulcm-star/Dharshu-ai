@@ -1,0 +1,28 @@
+{
+  "short_name": "Dharshu AI",
+  "name": "Dharshu - Friendly AI Companion",
+  "description": "Friendly, warm, caring, and natural AI companion supporting Tanglish, Tamil, and English.",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192 512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "display": "standalone",
+  "orientation": "portrait",
+  "categories": ["lifestyle", "entertainment", "social"],
+  "shortcuts": [
+    {
+      "name": "New Chat",
+      "short_name": "New Chat",
+      "description": "Start a new conversation with Dharshu",
+      "url": "/?action=new",
+      "icons": [{ "src": "/icon.svg", "sizes": "192x192" }]
+    }
+  ]
+}
