@@ -1,6 +1,6 @@
-import React from 'react';
-import { Plus, Search, Trash2, Settings, Moon, Sun, X, Sparkles, MessageCircle, Clock } from 'lucide-react';
-import { ChatSession, PersonalityMode, SettingsState } from '../types';
+import React, { useState } from 'react';
+import { Plus, Search, Trash2, Settings, Moon, Sun, X, MessageCircle, Clock } from 'lucide-react';
+import { ChatSession, SettingsState } from '../types';
 import { DharshuAvatar } from './DharshuAvatar';
 import { PERSONALITIES } from '../data/personalities';
 
@@ -18,10 +18,9 @@ interface SidebarProps {
   onSearchChange: (q: string) => void;
   settings: SettingsState;
   onToggleTheme: () => void;
-  onSelectPersonality: (mode: PersonalityMode) => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({
+export const Sidebar: React.FC<SidebarProps> = React.memo(({
   isOpen,
   onCloseMobile,
   sessions,
@@ -35,8 +34,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSearchChange,
   settings,
   onToggleTheme,
-  onSelectPersonality,
 }) => {
+  const [confirmClear, setConfirmClear] = useState(false);
+
   return (
     <>
       {/* Mobile Backdrop Overlay */}
@@ -50,7 +50,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Sidebar Panel */}
       <aside
-        className={`fixed lg:static top-0 bottom-0 left-0 z-40 w-72 sm:w-80 glass-panel lg:border-r border-r-0 flex flex-col transition-all duration-300 ease-in-out ${
+        className={`fixed lg:static top-0 bottom-0 left-0 z-40 w-72 sm:w-76 glass-panel lg:border-r border-r-0 flex flex-col transition-all duration-300 ease-in-out ${
           isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
@@ -60,16 +60,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <DharshuAvatar size="sm" personality={settings.personality} showBadge={false} />
             <div>
               <h1 className="font-bold text-base text-zinc-900 dark:text-zinc-100 font-heading leading-tight">
-                Remix Dharshu
+                Darshu AI
               </h1>
               <p className="text-[11px] text-zinc-500 dark:text-zinc-400 font-medium">
-                Bilingual AI Companion
+                MacBook Personal Assistant
               </p>
             </div>
           </div>
           <button
             onClick={onCloseMobile}
-            className="lg:hidden p-1.5 rounded-lg glass-button text-zinc-400 hover:text-white"
+            className="lg:hidden p-1.5 rounded-lg glass-button text-zinc-400 hover:text-white cursor-pointer"
             aria-label="Close sidebar"
           >
             <X className="w-4 h-4" />
@@ -83,7 +83,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               onNewChat();
               onCloseMobile();
             }}
-            className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 active:scale-[0.98] text-white font-semibold text-xs sm:text-sm shadow-lg shadow-indigo-600/30 border border-white/20 transition-all flex items-center justify-center gap-2 cursor-pointer backdrop-blur-md"
+            className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 active:scale-[0.98] text-white font-semibold text-xs sm:text-sm shadow-lg shadow-indigo-600/30 border border-white/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
             <span>Start New Chat</span>
@@ -98,50 +98,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
               type="text"
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="Search chat history..."
+              placeholder="Search conversations..."
               className="w-full glass-button rounded-xl pl-8 pr-7 py-1.5 text-xs text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400/40 transition"
             />
             {searchQuery && (
               <button
                 onClick={() => onSearchChange('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 cursor-pointer"
               >
                 <X className="w-3 h-3" />
               </button>
             )}
-          </div>
-        </div>
-
-        {/* Personality Mode Fast Selector */}
-        <div className="px-3 my-1.5">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-400 mb-1.5 flex items-center justify-between px-1">
-            <span className="flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-indigo-400" /> Mode
-            </span>
-            <span className="text-indigo-600 dark:text-indigo-400 font-semibold normal-case text-xs">
-              {PERSONALITIES[settings.personality]?.name}
-            </span>
-          </div>
-          <div className="grid grid-cols-3 gap-1">
-            {Object.values(PERSONALITIES).map((p) => {
-              const isActive = settings.personality === p.id;
-              const Icon = p.icon;
-              return (
-                <button
-                  key={p.id}
-                  onClick={() => onSelectPersonality(p.id)}
-                  title={p.name}
-                  className={`py-1 px-1.5 rounded-lg text-[11px] font-medium flex items-center justify-center gap-1.5 transition cursor-pointer ${
-                    isActive
-                      ? 'bg-indigo-600/90 text-white shadow-xs font-semibold border border-indigo-400/50 backdrop-blur-md'
-                      : 'glass-button text-zinc-600 dark:text-zinc-300'
-                  }`}
-                >
-                  <Icon className="w-3 h-3 shrink-0" />
-                  <span className="truncate">{p.name}</span>
-                </button>
-              );
-            })}
           </div>
         </div>
 
@@ -161,7 +128,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 No chat history yet
               </p>
               <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-0.5">
-                Start a new conversation with Dharshu!
+                Start a conversation with Darshu!
               </p>
             </div>
           ) : (
@@ -247,19 +214,36 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
 
           {sessions.length > 0 && (
-            <button
-              onClick={() => {
-                if (window.confirm('Are you sure you want to clear all conversation history?')) {
-                  onClearHistory();
-                }
-              }}
-              className="w-full py-1 text-[11px] text-zinc-400 hover:text-rose-400 transition text-center cursor-pointer"
-            >
-              Clear all history
-            </button>
+            confirmClear ? (
+              <div className="flex items-center justify-center gap-2 pt-0.5">
+                <span className="text-[11px] text-rose-400 font-medium">Clear all?</span>
+                <button
+                  onClick={() => {
+                    onClearHistory();
+                    setConfirmClear(false);
+                  }}
+                  className="px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 text-[11px] font-semibold transition cursor-pointer"
+                >
+                  Yes
+                </button>
+                <button
+                  onClick={() => setConfirmClear(false)}
+                  className="px-2 py-0.5 rounded-md glass-button text-zinc-400 hover:text-zinc-200 text-[11px] transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setConfirmClear(true)}
+                className="w-full py-1 text-[11px] text-zinc-400 hover:text-rose-400 transition text-center cursor-pointer"
+              >
+                Clear all history
+              </button>
+            )
           )}
         </div>
       </aside>
     </>
   );
-};
+});

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { X, Volume2, Globe, Sparkles, Moon, Sun, Trash2, Sliders, Smartphone, Play, Check, Zap, Radio, AudioLines } from 'lucide-react';
-import { SettingsState, PersonalityMode, LanguagePref, ThemeMode } from '../types';
+import { SettingsState, PersonalityMode, LanguagePref } from '../types';
 import { PersonalitySelector } from './PersonalitySelector';
 import { POLLY_VOICES } from '../data/pollyVoices';
 
@@ -23,40 +23,92 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'persona' | 'voice' | 'alexa' | 'language' | 'appearance'>('alexa');
   const [testPlaying, setTestPlaying] = useState<string | null>(null);
+  const [confirmClear, setConfirmClear] = useState(false);
+  const previewAudioRef = useRef<HTMLAudioElement | null>(null);
 
   if (!isOpen) return null;
 
-  const handleTestVoice = (voiceId: string) => {
-    if (!('speechSynthesis' in window)) return;
-    window.speechSynthesis.cancel();
+  const handleTestVoice = async (voiceId: string) => {
+    if (previewAudioRef.current) {
+      previewAudioRef.current.pause();
+      previewAudioRef.current = null;
+    }
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+
     setTestPlaying(voiceId);
 
     const testPhrase =
       settings.languagePref === 'tamil'
-        ? 'வணக்கம்! நான் தர்ஷு, உங்களுக்கு உதவ தயாராக இருக்கிறேன்.'
+        ? 'வணக்கம்! நான் தர்ஷு, உங்களுடன் அன்பாக பேசவும் உதவவும் எப்போதும் தயாராக இருக்கிறேன்.'
         : settings.languagePref === 'tanglish'
-        ? 'Hi! Naan Dharshu. Ungalukku help panna ready-ah irukken!'
-        : 'Hello! I am Dharshu, your Alexa-compatible AI assistant ready to help.';
+        ? 'Hi! Naan dhaan unga Dharshu. Epdi irukkeenga? Enna vishayam sollu, namma jolly-ah pesalam!'
+        : "Hi there! I'm Dharshu, your warm and friendly AI companion. Just say Hey Dashu anytime you want to talk!";
+
+    try {
+      const res = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: testPhrase,
+          voiceId,
+          personality: settings.personality || 'friendly',
+        }),
+      });
+
+      const contentType = res.headers.get('content-type') || '';
+      if (res.ok && contentType.includes('audio')) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        audio.playbackRate = settings.speechRate || 1.0;
+        previewAudioRef.current = audio;
+
+        audio.onended = () => {
+          URL.revokeObjectURL(url);
+          previewAudioRef.current = null;
+          setTestPlaying(null);
+        };
+        audio.onerror = () => {
+          URL.revokeObjectURL(url);
+          previewAudioRef.current = null;
+          setTestPlaying(null);
+        };
+
+        await audio.play();
+        return;
+      }
+    } catch {
+      // Fallback to browser synthesis below
+    }
+
+    if (!('speechSynthesis' in window)) {
+      setTestPlaying(null);
+      return;
+    }
 
     const utterance = new SpeechSynthesisUtterance(testPhrase);
     utterance.rate = settings.speechRate || 1.0;
     utterance.pitch = settings.speechPitch || 1.05;
 
-    // Map voice profiles to browser voice signatures
     const voiceMatchKeywords: Record<string, string[]> = {
-      Joanna: ['samantha', 'zira', 'joanna', 'victoria', 'natural', 'en-us', 'female'],
-      Danielle: ['danielle', 'karen', 'fiona', 'natural', 'en-us', 'female'],
-      Kendra: ['kendra', 'samantha', 'allison', 'natural', 'female'],
-      Salli: ['salli', 'zira', 'ivy', 'female', 'girl'],
-      Aditi: ['aditi', 'veena', 'heera', 'shruti', 'priya', 'ta-in', 'en-in', 'female'],
-      Kajal: ['kajal', 'priya', 'veena', 'ta-in', 'en-in', 'female'],
-      Matthew: ['matthew', 'david', 'george', 'alex', 'guy', 'male', 'en-us'],
+      Joanna: ['samantha', 'ava', 'allison', 'google us english', 'victoria', 'female'],
+      Danielle: ['ava', 'samantha', 'karen', 'fiona', 'victoria', 'female'],
+      Kendra: ['allison', 'samantha', 'victoria', 'female'],
+      Salli: ['victoria', 'samantha', 'tessa', 'female'],
+      Aditi: ['lekha', 'veena', 'vani', 'samantha', 'female'],
+      Kajal: ['lekha', 'veena', 'samantha', 'female'],
+      Matthew: ['alex', 'daniel', 'david', 'male'],
     };
 
-    const keywords = voiceMatchKeywords[voiceId] || ['female', 'natural'];
-    const matchedVoice = availableVoices.find((v) =>
-      keywords.some((kw) => v.name.toLowerCase().includes(kw) || v.voiceURI.toLowerCase().includes(kw))
-    ) || availableVoices[0];
+    const keywords = voiceMatchKeywords[voiceId] || ['samantha', 'ava', 'female'];
+    const matchedVoice =
+      availableVoices.find((v) =>
+        keywords.some(
+          (kw) => v.name.toLowerCase().includes(kw) || v.voiceURI.toLowerCase().includes(kw)
+        )
+      ) || availableVoices[0];
 
     if (matchedVoice) utterance.voice = matchedVoice;
 
@@ -77,10 +129,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-bold text-zinc-900 dark:text-zinc-100 font-heading">
-                Settings & Voice Engine
+                Settings & Neural Voice Studio
               </h2>
               <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                Configure smart voice profiles, assistant persona, and interface controls
+                Choose expressive human-like female voices, wake-word controls, and persona
               </p>
             </div>
           </div>
@@ -96,7 +148,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         {/* Tab Navigation */}
         <div className="flex border-b border-white/10 px-4 sm:px-6 bg-black/10 overflow-x-auto scrollbar-none">
           {[
-            { id: 'alexa', label: 'Voice Profiles', icon: <AudioLines className="w-3.5 h-3.5" /> },
+            { id: 'alexa', label: 'Neural Voices', icon: <AudioLines className="w-3.5 h-3.5" /> },
             { id: 'persona', label: 'Persona', icon: <Sparkles className="w-3.5 h-3.5" /> },
             { id: 'voice', label: 'Audio Controls', icon: <Volume2 className="w-3.5 h-3.5" /> },
             { id: 'language', label: 'Language', icon: <Globe className="w-3.5 h-3.5" /> },
@@ -123,17 +175,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {activeTab === 'alexa' && (
             <div className="space-y-5">
               <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 font-heading">
-                    Natural Voice Profiles
-                  </h3>
-                </div>
+                <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 font-heading">
+                  Human-Like Neural Voice Profiles
+                </h3>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-                  Choose your high-fidelity smart-speaker voice profile with natural intonation and articulation.
+                  Powered by Gemini 3.8 Neural TTS for soft, sweet, clear, warm, and expressive Tamil, Tanglish & English speech.
                 </p>
               </div>
 
-              {/* Voice Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {POLLY_VOICES.map((voice) => {
                   const isSelected = (settings.pollyVoiceId || 'Joanna') === voice.id;
@@ -151,18 +200,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     >
                       <div>
                         <div className="flex items-center justify-between mb-1.5">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-sm text-zinc-900 dark:text-zinc-100">{voice.name}</span>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-bold text-sm text-zinc-900 dark:text-zinc-100">
+                              {voice.name}
+                            </span>
                             <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-white/10 font-medium">
                               {voice.gender}
                             </span>
                             {voice.isDefault && (
                               <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-indigo-500/30 text-indigo-300 font-semibold">
-                                Standard
+                                Recommended
                               </span>
                             )}
                           </div>
-                          {isSelected && <Check className="w-4 h-4 text-indigo-400" />}
+                          {isSelected && <Check className="w-4 h-4 text-indigo-400 shrink-0" />}
                         </div>
                         <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-snug">
                           {voice.description}
@@ -170,7 +221,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       </div>
 
                       <div className="flex items-center justify-between mt-3 pt-2 border-t border-white/5">
-                        <span className="text-[10px] text-zinc-400 font-medium">{voice.languageName}</span>
+                        <span className="text-[10px] text-zinc-400 font-medium">
+                          {voice.languageName}
+                        </span>
                         <button
                           type="button"
                           onClick={(e) => {
@@ -180,7 +233,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           className="px-2.5 py-1 rounded-lg glass-button text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 flex items-center gap-1 cursor-pointer"
                         >
                           <Play className="w-3 h-3 fill-current" />
-                          <span>{isPlayingThis ? 'Playing...' : 'Preview'}</span>
+                          <span>{isPlayingThis ? 'Playing...' : 'Preview Voice'}</span>
                         </button>
                       </div>
                     </div>
@@ -188,16 +241,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 })}
               </div>
 
-              {/* Alexa Smart Features Toggles */}
+              {/* Wake-Word & Interruption Toggles */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                 <div className="p-3.5 rounded-2xl glass-card flex items-center justify-between">
                   <div className="pr-2">
                     <div className="text-xs sm:text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
                       <Zap className="w-3.5 h-3.5 text-amber-400" />
-                      <span>Instant Wake-Word</span>
+                      <span>Continuous "Hey Dashu" Wake-Word</span>
                     </div>
                     <div className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                      Respond to "Hey Dharshu" and "Alexa"
+                      Hands-free activation when you say "Hey Dashu" or "Hey Dharshu"
                     </div>
                   </div>
                   <input
@@ -215,13 +268,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       <span>Instant Interruption</span>
                     </div>
                     <div className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                      Stop playback when you speak or click mic
+                      Stop voice playback immediately when you interrupt
                     </div>
                   </div>
                   <input
                     type="checkbox"
                     checked={settings.voiceInterruptionEnabled ?? true}
-                    onChange={(e) => onUpdateSettings({ voiceInterruptionEnabled: e.target.checked })}
+                    onChange={(e) =>
+                      onUpdateSettings({ voiceInterruptionEnabled: e.target.checked })
+                    }
                     className="w-5 h-5 accent-indigo-600 rounded cursor-pointer"
                   />
                 </div>
@@ -237,7 +292,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   Select Dharshu's Mood & Persona
                 </h3>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">
-                  Choose how Dharshu speaks, jokes, teaches, or comforts you during conversations.
+                  Dharshu automatically adapts her emotional voice inflection to match her persona.
                 </p>
               </div>
               <PersonalitySelector
@@ -254,9 +309,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="p-3.5 rounded-2xl glass-card flex items-center justify-between">
                   <div>
                     <div className="text-xs sm:text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                      Voice Output
+                      Voice Output Enabled
                     </div>
-                    <div className="text-[11px] text-zinc-500 dark:text-zinc-400">Allow Dharshu to speak replies</div>
+                    <div className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                      Enable neural speech synthesis
+                    </div>
                   </div>
                   <input
                     type="checkbox"
@@ -269,9 +326,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="p-3.5 rounded-2xl glass-card flex items-center justify-between">
                   <div>
                     <div className="text-xs sm:text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                      Auto-Read Responses
+                      Auto-Speak AI Responses
                     </div>
-                    <div className="text-[11px] text-zinc-500 dark:text-zinc-400">Speak new messages automatically</div>
+                    <div className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                      Automatically speak every reply hands-free
+                    </div>
                   </div>
                   <input
                     type="checkbox"
@@ -286,13 +345,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                 <div className="p-3.5 rounded-2xl glass-card">
                   <div className="flex justify-between text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-2">
-                    <span>Speech Speed</span>
+                    <span>Base Speaking Speed (Auto-Adaptive)</span>
                     <span className="text-indigo-400">{settings.speechRate || 1.0}x</span>
                   </div>
                   <input
                     type="range"
-                    min="0.7"
-                    max="1.4"
+                    min="0.8"
+                    max="1.3"
                     step="0.05"
                     value={settings.speechRate || 1.0}
                     onChange={(e) => onUpdateSettings({ speechRate: parseFloat(e.target.value) })}
@@ -302,13 +361,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                 <div className="p-3.5 rounded-2xl glass-card">
                   <div className="flex justify-between text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-2">
-                    <span>Voice Pitch</span>
+                    <span>Fallback Voice Pitch</span>
                     <span className="text-indigo-400">{settings.speechPitch || 1.05}x</span>
                   </div>
                   <input
                     type="range"
-                    min="0.8"
-                    max="1.5"
+                    min="0.85"
+                    max="1.3"
                     step="0.05"
                     value={settings.speechPitch || 1.05}
                     onChange={(e) => onUpdateSettings({ speechPitch: parseFloat(e.target.value) })}
@@ -316,6 +375,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   />
                 </div>
               </div>
+
+              {/* Optional Local Fallback Voice Override */}
+              {availableVoices.length > 0 && (
+                <div className="p-3.5 rounded-2xl glass-card space-y-2">
+                  <label className="block text-xs font-semibold text-zinc-800 dark:text-zinc-200">
+                    Offline / Fallback System Voice (macOS / Chrome)
+                  </label>
+                  <select
+                    value={settings.preferredVoiceURI || ''}
+                    onChange={(e) => onUpdateSettings({ preferredVoiceURI: e.target.value })}
+                    className="w-full rounded-xl glass-button px-3 py-2 text-xs text-zinc-900 dark:text-zinc-100 bg-zinc-900/60 focus:outline-none"
+                  >
+                    <option value="">Auto-Select Best Natural Female Voice</option>
+                    {availableVoices.map((v) => (
+                      <option key={v.voiceURI} value={v.voiceURI}>
+                        {v.name} ({v.lang})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
           )}
 
@@ -333,10 +413,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {[
-                  { id: 'auto', title: 'Auto Detect', desc: 'Responds in the language / dialect you speak' },
-                  { id: 'tanglish', title: 'Tanglish', desc: 'Casual Tamil typed with English script (e.g., Epdi irukkeenga?)' },
-                  { id: 'english', title: 'English', desc: 'Conversational and clear English' },
-                  { id: 'tamil', title: 'Tamil (தமிழ்)', desc: 'Pure or colloquial Tamil script (e.g., வணக்கம்!)' },
+                  {
+                    id: 'auto',
+                    title: 'Auto Detect',
+                    desc: 'Responds naturally in the language or dialect you speak',
+                  },
+                  {
+                    id: 'tanglish',
+                    title: 'Tanglish',
+                    desc: 'Casual Tamil in English script (e.g., Epdi irukkeenga?)',
+                  },
+                  {
+                    id: 'english',
+                    title: 'English',
+                    desc: 'Warm, clear conversational English',
+                  },
+                  {
+                    id: 'tamil',
+                    title: 'Tamil (தமிழ்)',
+                    desc: 'Natural Tamil script & pronunciation (e.g., வணக்கம்!)',
+                  },
                 ].map((lang) => {
                   const isActive = settings.languagePref === lang.id;
                   return (
@@ -353,7 +449,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <span className="font-bold text-sm">{lang.title}</span>
                         {isActive && <Check className="w-4 h-4 text-indigo-400" />}
                       </div>
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-snug">{lang.desc}</p>
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-snug">
+                        {lang.desc}
+                      </p>
                     </button>
                   );
                 })}
@@ -395,33 +493,54 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
               </div>
 
-              {/* Android & PWA Integration Guide */}
               <div className="p-3.5 rounded-2xl glass-card flex items-start gap-3">
                 <div className="p-2 rounded-xl glass-button text-indigo-400 shrink-0">
                   <Smartphone className="w-4 h-4" />
                 </div>
                 <div className="text-xs">
-                  <div className="font-bold text-zinc-900 dark:text-zinc-100">Android PWA & Mobile App</div>
+                  <div className="font-bold text-zinc-900 dark:text-zinc-100">
+                    macOS Chrome & Mobile PWA Ready
+                  </div>
                   <p className="text-zinc-500 dark:text-zinc-400 text-[11px] mt-0.5 leading-relaxed">
-                    Install Dharshu on your phone by tapping <strong>"Add to Home screen"</strong> in Chrome or Safari. It works like a native app with full-screen experience and fast loading.
+                    Optimized for Google Chrome on macOS and Android PWA. Keep the tab open and say <strong>"Hey Dashu"</strong> for hands-free voice conversations.
                   </p>
                 </div>
               </div>
 
-              {/* Clear History */}
               <div className="pt-2">
-                <button
-                  onClick={() => {
-                    if (window.confirm('Are you sure you want to delete all saved conversations? This cannot be undone.')) {
-                      onClearHistory();
-                      onClose();
-                    }
-                  }}
-                  className="w-full py-2.5 px-4 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 font-semibold text-xs flex items-center justify-center gap-2 transition cursor-pointer backdrop-blur-md"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  <span>Delete All Chat History</span>
-                </button>
+                {confirmClear ? (
+                  <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-between gap-2">
+                    <span className="text-xs text-rose-200 font-medium">
+                      Delete all saved conversations?
+                    </span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => {
+                          onClearHistory();
+                          setConfirmClear(false);
+                          onClose();
+                        }}
+                        className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold transition cursor-pointer"
+                      >
+                        Confirm Delete
+                      </button>
+                      <button
+                        onClick={() => setConfirmClear(false)}
+                        className="px-3 py-1.5 rounded-lg glass-button text-zinc-300 hover:text-white text-xs font-medium transition cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setConfirmClear(true)}
+                    className="w-full py-2.5 px-4 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 font-semibold text-xs flex items-center justify-center gap-2 transition cursor-pointer backdrop-blur-md"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Delete All Chat History</span>
+                  </button>
+                )}
               </div>
             </div>
           )}

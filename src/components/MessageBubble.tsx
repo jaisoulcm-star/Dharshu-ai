@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, memo } from 'react';
 import { motion } from 'motion/react';
 import Markdown from 'react-markdown';
 import { Copy, Check, Volume2, VolumeX, RotateCw, User, AlertCircle } from 'lucide-react';
@@ -12,13 +12,13 @@ interface MessageBubbleProps {
   isSpeakingThisMessage?: boolean;
   personality?: PersonalityMode;
   onCopy?: (text: string) => void;
-  onSpeak?: (text: string) => void;
+  onSpeak?: (text: string, messageId: string) => void;
   onStopSpeaking?: () => void;
   onRegenerate?: () => void;
   onRetry?: () => void;
 }
 
-export const MessageBubble: React.FC<MessageBubbleProps> = ({
+const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
   message,
   isLastAssistantMessage = false,
   isSpeakingThisMessage = false,
@@ -45,20 +45,24 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
     if (isSpeakingThisMessage) {
       if (onStopSpeaking) onStopSpeaking();
     } else {
-      if (onSpeak) onSpeak(message.content);
+      if (onSpeak) onSpeak(message.content, message.id);
     }
   };
 
-  const formattedTime = new Date(message.timestamp).toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  const formattedTime = useMemo(
+    () =>
+      new Date(message.timestamp).toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+    [message.timestamp]
+  );
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 10, scale: 0.99 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.2, ease: 'easeOut' }}
+      transition={{ duration: 0.18, ease: 'easeOut' }}
       className={`flex items-start gap-2.5 sm:gap-3.5 my-2.5 sm:my-3.5 px-1 sm:px-2 ${
         isUser ? 'flex-row-reverse' : 'flex-row'
       }`}
@@ -198,3 +202,16 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
     </motion.div>
   );
 };
+
+export const MessageBubble = memo(MessageBubbleComponent, (prev, next) => {
+  return (
+    prev.message.id === next.message.id &&
+    prev.message.content === next.message.content &&
+    prev.message.status === next.message.status &&
+    prev.message.errorMessage === next.message.errorMessage &&
+    prev.isLastAssistantMessage === next.isLastAssistantMessage &&
+    prev.isSpeakingThisMessage === next.isSpeakingThisMessage &&
+    prev.personality === next.personality
+  );
+});
+

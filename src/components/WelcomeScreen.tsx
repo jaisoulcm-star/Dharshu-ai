@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { MessageSquare, BookOpen, Mic, Sparkles, Smile, ArrowRight, Zap, Radio, AudioLines } from 'lucide-react';
+import { MessageSquare, BookOpen, Sparkles, Smile, ArrowRight, Zap, Radio, AudioLines } from 'lucide-react';
 import { DharshuAvatar } from './DharshuAvatar';
 import { PersonalityMode } from '../types';
 import { PERSONALITIES } from '../data/personalities';
@@ -23,8 +23,8 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
       id: 'alexa-voice',
       icon: <AudioLines className="w-5 h-5 text-cyan-400" />,
       title: 'Natural Voice Mode',
-      desc: 'Hands-free voice recognition and conversational speech audio',
-      prompt: 'Hey Dharshu, introduce yourself and how you can help me!',
+      desc: 'Say "Hey Dashu" for hands-free recognition and sweet neural voice replies',
+      prompt: 'Hey Dashu, introduce yourself and tell me how you can help me!',
       action: onStartVoice,
       personality: 'friendly' as PersonalityMode,
       glowHover: 'hover:border-cyan-400/50 hover:shadow-cyan-500/20',
@@ -33,7 +33,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
       id: 'chatting',
       icon: <MessageSquare className="w-5 h-5 text-indigo-400" />,
       title: 'Friendly Chat',
-      desc: 'Warm banter & daily catch-up in Tanglish or English',
+      desc: 'Warm banter & daily catch-up in Tanglish, Tamil, or English',
       prompt: 'Hi Dharshu! Enna panra? How is your day going?',
       personality: 'friendly' as PersonalityMode,
       glowHover: 'hover:border-indigo-400/50 hover:shadow-indigo-500/20',
@@ -86,23 +86,21 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   ];
 
   const suggestedPrompts = [
-    { label: '“Hey Dharshu, what is AI?”', text: 'Hey Dharshu, what is Artificial Intelligence and how does it work?' },
+    { label: '“Hey Dashu, what is AI?”', text: 'Hey Dashu, what is Artificial Intelligence and how does it work?' },
     { label: '“Dharshu, enna panra?”', text: 'Dharshu, enna panra?' },
     { label: '“Explain Gravity in simple Tanglish”', text: 'Explain Gravity in simple Tanglish step by step!' },
     { label: '“Give me morning motivation!”', text: 'Give me an energetic motivation pep talk for today!' },
-    { label: '“Alexa, tell me something interesting”', text: 'Alexa, tell me a fascinating science fact!' },
+    { label: '“Speak a sweet Tamil greeting”', text: 'வணக்கம் தர்ஷு! எனக்கு ஒரு இனிய தமிழ் வாழ்த்து சொல்லு.' },
   ];
 
   const PersonalityIcon = personalityInfo.icon;
 
   return (
     <div className="w-full max-w-3xl mx-auto px-3 sm:px-6 py-6 sm:py-10 flex flex-col items-center justify-center text-center relative z-10">
-      {/* Avatar Hero */}
       <div className="mb-4">
         <DharshuAvatar size="xl" personality={selectedPersonality} showBadge={true} />
       </div>
 
-      {/* Title & Tagline */}
       <motion.div
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
@@ -113,10 +111,9 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
           Hi, I’m <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 drop-shadow-sm">Dharshu</span>
         </h1>
         <p className="text-sm sm:text-base text-zinc-600 dark:text-zinc-300 font-medium">
-          Your Alexa-compatible AI companion for natural voice conversations, studies, humor, and daily support.
+          Your warm, expressive AI voice companion for natural Tamil, Tanglish, and English conversations.
         </p>
 
-        {/* Current Mood Chip & Alexa Voice Badge */}
         <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
           <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold glass-card text-zinc-700 dark:text-zinc-200 shadow-sm">
             <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
@@ -127,12 +124,11 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
           <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-cyan-500/15 text-cyan-300 border border-cyan-400/30 backdrop-blur-md shadow-sm">
             <Radio className="w-3.5 h-3.5 text-cyan-300 animate-pulse" />
-            <span>Wake Word: "Hey Dharshu" & "Alexa"</span>
+            <span>Wake Words: "Hey Dashu", "Jasa" & "Hey Dharshu"</span>
           </div>
         </div>
       </motion.div>
 
-      {/* 4 Feature Glass Action Cards */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
@@ -171,7 +167,6 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
         ))}
       </motion.div>
 
-      {/* Suggested Starter Prompts */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
